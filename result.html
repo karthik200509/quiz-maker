@@ -1,0 +1,316 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Result</title>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1f2937;
+    }
+    .wrap { 
+      width: 100%;
+      max-width: 720px;
+       }
+    .card {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 { 
+      font-size: 28px; 
+      margin-bottom: 8px; 
+    }
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    .score { 
+      font-size: 64px;
+      font-weight: 700;
+      color: #16a34a; 
+      margin: 10px 0 20px;
+    }
+    .details {
+       text-align: left; 
+       padding: 16px 0; 
+       line-height: 1.8; 
+       color: #374151; 
+    }
+    .status { 
+      font-size: 24px; 
+      font-weight: 700; 
+      margin: 12px 0 20px; 
+    }
+    .status.pass { 
+      color: #16a34a; 
+    }
+    .status.fail { 
+      color: #dc2626; 
+    }
+    .btn-row {
+       display: flex; 
+       gap: 12px; 
+       margin-top: 10px; 
+      }
+    .btn-row button { 
+      flex: 1; 
+      border: none; 
+      border-radius: 10px; 
+      padding: 12px 14px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      color: #fff; 
+    }
+    #retake { 
+      background: #2563eb; 
+    }
+    #home { 
+      background: #16a34a; 
+    }
+    .btn-row button:hover {
+       opacity: 0.92;
+     }
+
+    /* Review sheet */
+    .review-card {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+      text-align: left;
+    }
+    .review-card h2 { 
+      font-size: 22px; 
+      margin-bottom: 4px; 
+      color: #1f2937; 
+    }
+    .review-card .review-subtitle { 
+      color: #6b7280; 
+      margin-bottom: 18px; 
+      font-size: 14px; 
+    }
+    .review-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 14px; 
+    }
+    .review-table th {
+      text-align: left;
+      background: #f3f4f6;
+      color: #374151;
+      padding: 10px 12px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .review-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: top;
+      color: #374151;
+    }
+    .review-table tr:last-child td { 
+      border-bottom: none; 
+    }
+    .qnum { 
+      font-weight: 700; 
+      color: #6b7280; 
+      width: 30px; 
+    }
+    .row-correct { 
+      background: #f0fdf4; 
+    }
+    .row-incorrect { 
+      background: #fef2f2; 
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .pill.correct { 
+      background: #dcfce7; 
+      color: #16a34a; 
+    }
+    .pill.incorrect { 
+      background: #fee2e2; 
+      color: #dc2626; 
+    }
+    .answer-line {
+       margin-bottom: 4px; 
+      }
+    .answer-label { 
+      font-weight: 700; 
+      color: #6b7280; 
+    }
+    .no-data { 
+      color: #6b7280; 
+      text-align: center; 
+      padding: 20px; 
+    }
+
+    @media (max-width: 640px) {
+      .review-table thead { 
+        display: none; 
+      }
+      .review-table, .review-table tbody, .review-table tr, .review-table td { 
+        display: block; 
+        width: 100%; 
+      }
+      .review-table tr { 
+        margin-bottom: 14px; 
+        border: 1px solid #e5e7eb; 
+        border-radius: 10px; 
+        padding: 10px; 
+      }
+      .review-table td { 
+        border-bottom: none; 
+        padding: 4px 2px; 
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>🎉 Quiz Completed</h1>
+      <p class="subtitle">Here is your final result.</p>
+      <h2 id="username"></h2>
+      <div class="score" id="score"></div>
+      <div class="details">
+        <p><strong>Topic:</strong> <span id="topic"></span></p>
+        <p><strong>Total Questions:</strong> <span id="total"></span></p>
+        <p><strong>Correct Answers:</strong> <span id="correct"></span></p>
+        <p><strong>Wrong Answers:</strong> <span id="wrong"></span></p>
+        <p><strong>Percentage:</strong> <span id="percentage"></span>%</p>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="btn-row">
+        <button id="retake">🔄 Retake Quiz</button>
+        <button id="home">🏠 Dashboard</button>
+      </div>
+    </div>
+
+    <div class="review-card">
+      <h2>📋 Answer Sheet</h2>
+      <p class="review-subtitle">Every question, your answer, and the correct answer.</p>
+      <div id="review-container"></div>
+    </div>
+  </div>
+
+  <script>
+    // Clear the saved in-progress state for the quiz that was just finished
+    // so a retake (or a fresh visit) starts at question 1 with a full timer.
+    const finishedQuizFile = localStorage.getItem("quizFile") || "";
+    if (finishedQuizFile) {
+      sessionStorage.removeItem("quizState_" + finishedQuizFile.replace(".html", ""));
+    }
+
+    const username = localStorage.getItem("username") || "Student";
+    const topic = localStorage.getItem("topic") || "Quiz";
+    const total = Number(localStorage.getItem("totalQuestions") || 0);
+    const correct = Number(localStorage.getItem("correctCount") || localStorage.getItem("score") || 0);
+    const wrong = Number(localStorage.getItem("wrongCount") || Math.max(total - correct, 0));
+
+    document.getElementById("username").textContent = `Congratulations, ${username}!`;
+    document.getElementById("topic").textContent = topic;
+    document.getElementById("score").textContent = `${correct} / ${total}`;
+    document.getElementById("total").textContent = total;
+    document.getElementById("correct").textContent = correct;
+    document.getElementById("wrong").textContent = wrong;
+
+    const percentage = total > 0 ? ((correct / total) * 100).toFixed(0) : 0;
+    document.getElementById("percentage").textContent = percentage;
+
+    const status = document.getElementById("status");
+    if (percentage >= 40) {
+      status.textContent = "✅ PASS";
+      status.className = "status pass";
+    } else {
+      status.textContent = "❌ FAIL";
+      status.className = "status fail";
+    }
+
+    document.getElementById("retake").onclick = () => {
+      window.location.href = localStorage.getItem("retakeUrl") || "quiz.html";
+    };
+
+    document.getElementById("home").onclick = () => {
+      window.location.href = "quiz.html";
+    };
+
+    // Build the review sheet
+    function renderReview() {
+      const container = document.getElementById("review-container");
+      let reviewData = [];
+      try {
+        reviewData = JSON.parse(localStorage.getItem("reviewData") || "[]");
+      } catch (e) {
+        reviewData = [];
+      }
+
+      if (!reviewData.length) {
+        container.innerHTML = '<p class="no-data">No answer details available for this attempt.</p>';
+        return;
+      }
+
+      const rows = reviewData.map((item, index) => {
+        const rowClass = item.isCorrect ? "row-correct" : "row-incorrect";
+        const pillClass = item.isCorrect ? "correct" : "incorrect";
+        const pillText = item.isCorrect ? "Correct" : "Incorrect";
+        return `
+          <tr class="${rowClass}">
+            <td class="qnum">${index + 1}</td>
+            <td>
+              <div>${item.question}</div>
+            </td>
+            <td>
+              <div class="answer-line"><span class="answer-label">Your answer:</span> ${item.userAnswerText}</div>
+              <div class="answer-line"><span class="answer-label">Correct answer:</span> ${item.correctAnswerText}</div>
+            </td>
+            <td><span class="pill ${pillClass}">${pillText}</span></td>
+          </tr>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <table class="review-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Question</th>
+              <th>Answers</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      `;
+    }
+
+    renderReview();
+  </script>
+</body>
+</html>

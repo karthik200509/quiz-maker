@@ -1,0 +1,252 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JavaScript Quiz</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #b91c1c, #f59e0b);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1f2937;
+    }
+    .page { width: 100%; max-width: 760px; }
+    .quiz-card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+      padding: 32px;
+    }
+    .badge { display: inline-block; background: #fef2f2; color: #b91c1c; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 12px; letter-spacing: 0.4px; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .subtitle { color: #6b7280; margin-bottom: 24px; }
+    .question-meta { font-weight: 700; margin-bottom: 16px; color: #374151; }
+    .timer-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .timer-row .question-meta { margin-bottom: 0; }
+    .timer { font-weight: 700; color: #b91c1c; background: #fef2f2; padding: 6px 12px; border-radius: 999px; font-size: 14px; }
+    .timer.low { color: #dc2626; background: #fee2e2; }
+    .question-text { font-size: 20px; margin-bottom: 16px; line-height: 1.5; }
+    .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+    .option { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px; cursor: pointer; transition: 0.2s ease; background: #f9fafb; }
+    .option:hover { border-color: #ef4444; background: #fef2f2; }
+    .option.selected { border-color: #ef4444; background: #fef2f2; box-shadow: 0 0 0 1px #ef4444 inset; }
+    .option input { accent-color: #b91c1c; }
+    .feedback { min-height: 24px; margin-bottom: 14px; font-weight: 700; color: #374151; }
+    .feedback.correct { color: #16a34a; }
+    .feedback.incorrect { color: #dc2626; }
+    .feedback.warning { color: #d97706; }
+    .btn-row { display: flex; gap: 12px; margin-top: 10px; }
+    .btn-row button { flex: 1; border: none; border-radius: 10px; padding: 12px 14px; font-size: 16px; cursor: pointer; transition: 0.2s ease; color: #fff; }
+    .btn-row button:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-row button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; }
+    #prev-btn { background: #64748b; }
+    #next-btn { background: #b91c1c; }
+    .transition-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
+    body.is-transitioning .transition-overlay { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="quiz-card">
+      <div class="badge">JavaScript Quiz</div>
+      <h1>JavaScript Basics</h1>
+      <p class="subtitle">Pick the right option and continue to the summary page at the end.</p>
+      <div class="timer-row">
+        <p id="question-counter" class="question-meta">Question 1 of 5</p>
+        <span id="timer" class="timer">04:00</span>
+      </div>
+      <p id="question-text" class="question-text"></p>
+      <div id="options" class="options"></div>
+      <div id="feedback" class="feedback"></div>
+      <div class="btn-row">
+        <button id="prev-btn" type="button" style="display:none;">Previous</button>
+        <button id="next-btn" type="button" disabled>Next</button>
+      </div>
+    </div>
+  </div>
+  <div class="transition-overlay"></div>
+
+  <script>
+    const questions = [
+      { question: "What is JavaScript used for?", options: ["Styling pages", "Adding interactivity to web pages", "Creating databases", "Rendering images"], correctAnswer: 1 },
+      { question: "JavaScript can change the content of a webpage?", options: ["true", "false"], correctAnswer: 0 },
+      { question: "Which keyword declares a variable?", options: ["let", "if", "for", "function"], correctAnswer: 0 },
+      { question: "What does DOM stand for?", options: ["Data Object Model", "Document Object Model", "Dynamic Object Mode", "Document Oriented Method"], correctAnswer: 1 },
+      { question: "JavaScript can run in a browser?", options: ["true", "false"], correctAnswer: 0 }
+    ];
+
+    const questionCounter = document.getElementById("question-counter");
+    const questionText = document.getElementById("question-text");
+    const optionsBox = document.getElementById("options");
+    const feedbackBox = document.getElementById("feedback");
+    const prevBtn = document.getElementById("prev-btn");
+    const nextBtn = document.getElementById("next-btn");
+
+    const QUIZ_STORAGE_KEY = "quizState_javascript";
+    const TIMER_DURATION_MS = 4 * 60 * 1000;
+    const timerDisplay = document.getElementById("timer");
+    let timerInterval = null;
+
+    let savedState = null;
+    try {
+      savedState = JSON.parse(sessionStorage.getItem(QUIZ_STORAGE_KEY) || "null");
+    } catch (e) {
+      savedState = null;
+    }
+
+    const state = savedState
+      ? { currentQuestion: savedState.currentQuestion || 0, answers: savedState.answers || [] }
+      : { currentQuestion: 0, answers: [] };
+
+    // On refresh, keep our place in the quiz but remove the option we had
+    // selected for the current question so it must be chosen again.
+    if (savedState) {
+      delete state.answers[state.currentQuestion];
+    }
+
+    const timerEnd = savedState && savedState.timerEnd ? savedState.timerEnd : Date.now() + TIMER_DURATION_MS;
+
+    function saveQuizState() {
+      sessionStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify({
+        currentQuestion: state.currentQuestion,
+        answers: state.answers,
+        timerEnd: timerEnd
+      }));
+    }
+
+    function updateTimerDisplay() {
+      const remaining = Math.max(0, timerEnd - Date.now());
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      timerDisplay.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      timerDisplay.classList.toggle("low", remaining <= 30000);
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        autoSubmit();
+      }
+    }
+
+    function autoSubmit() {
+      saveResults();
+      sessionStorage.removeItem(QUIZ_STORAGE_KEY);
+      feedbackBox.textContent = "⏰ Time's up! Submitting your quiz...";
+      feedbackBox.className = "feedback warning";
+      document.body.classList.add("is-transitioning");
+      setTimeout(() => {
+        window.location.href = "result.html";
+      }, 500);
+    }
+
+    function saveResults() {
+      localStorage.setItem("topic", "JavaScript Quiz");
+      localStorage.setItem("quizFile", "javascript.html");
+      localStorage.setItem("retakeUrl", "javascript.html");
+      localStorage.setItem("username", localStorage.getItem("username") || "Student");
+      const correctCount = state.answers.reduce((count, answer, index) => count + (answer !== undefined && answer === questions[index].correctAnswer ? 1 : 0), 0);
+      const wrongCount = questions.length - correctCount;
+      localStorage.setItem("score", correctCount);
+      localStorage.setItem("correctCount", correctCount);
+      localStorage.setItem("wrongCount", wrongCount);
+      localStorage.setItem("totalQuestions", questions.length);
+
+      const reviewData = questions.map((q, index) => ({
+        question: q.question,
+        options: q.options,
+        userAnswer: state.answers[index],
+        userAnswerText: state.answers[index] !== undefined ? q.options[state.answers[index]] : "Not answered",
+        correctAnswer: q.correctAnswer,
+        correctAnswerText: q.options[q.correctAnswer],
+        isCorrect: state.answers[index] === q.correctAnswer
+      }));
+      localStorage.setItem("reviewData", JSON.stringify(reviewData));
+    }
+
+    function updateNextButton() {
+      nextBtn.disabled = state.answers[state.currentQuestion] === undefined;
+    }
+
+    function clearFeedback() {
+      feedbackBox.textContent = "";
+      feedbackBox.className = "feedback";
+    }
+
+    function showQuestion() {
+      const q = questions[state.currentQuestion];
+      questionCounter.innerHTML = `<strong>Question ${state.currentQuestion + 1} of ${questions.length}</strong>`;
+      questionText.textContent = q.question;
+      optionsBox.innerHTML = "";
+
+      q.options.forEach((option, index) => {
+        const label = document.createElement("label");
+        label.className = "option";
+
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = `answer-${state.currentQuestion}`;
+        input.value = index;
+        input.checked = state.answers[state.currentQuestion] === index;
+        if (state.answers[state.currentQuestion] === index) {
+          label.classList.add("selected");
+        }
+        input.addEventListener("change", function () {
+          state.answers[state.currentQuestion] = Number(this.value);
+          saveResults();
+          optionsBox.querySelectorAll(".option").forEach(function (el) {
+            el.classList.remove("selected");
+          });
+          label.classList.add("selected");
+          updateNextButton();
+        });
+
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(` ${option}`));
+        optionsBox.appendChild(label);
+      });
+
+      prevBtn.style.display = state.currentQuestion === 0 ? "none" : "inline-block";
+      nextBtn.textContent = state.currentQuestion === questions.length - 1 ? "Submit" : "Next";
+      updateNextButton();
+      clearFeedback();
+      saveQuizState();
+    }
+
+    prevBtn.addEventListener("click", function () {
+      if (state.currentQuestion > 0) {
+        state.currentQuestion -= 1;
+        showQuestion();
+      }
+    });
+
+    nextBtn.addEventListener("click", function () {
+      if (state.answers[state.currentQuestion] === undefined) {
+        feedbackBox.textContent = "Please choose an answer before continuing.";
+        feedbackBox.className = "feedback warning";
+        return;
+      }
+
+      saveResults();
+      if (state.currentQuestion < questions.length - 1) {
+        state.currentQuestion += 1;
+        showQuestion();
+      } else {
+        clearInterval(timerInterval);
+        sessionStorage.removeItem(QUIZ_STORAGE_KEY);
+        document.body.classList.add("is-transitioning");
+        setTimeout(() => {
+          window.location.href = "result.html";
+        }, 350);
+      }
+    });
+
+    showQuestion();
+    updateTimerDisplay();
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>React Quiz</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f7fb;
+    }
+
+    .container {
+        display: flex;
+        min-height: 100vh;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .main {
+        width: 100%;
+        max-width: 650px;
+    }
+
+    .quiz-box {
+        background: white;
+        padding: 35px;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .quiz-box h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .quiz-box p {
+        margin-bottom: 15px;
+        font-size: 18px;
+    }
+
+    .timer-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .timer-row p {
+        margin-bottom: 0;
+    }
+
+    .timer {
+        font-weight: bold;
+        color: #00838f;
+        background: #e0f7fa;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 14px;
+    }
+
+    .timer.low {
+        color: #d32f2f;
+        background: #ffebee;
+    }
+
+    .options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .option {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .option.selected {
+        border-color: #00bcd4;
+        background: #e0f7fa;
+        box-shadow: 0 0 0 1px #00bcd4 inset;
+    }
+
+    .feedback {
+        margin-top: 10px;
+        font-weight: bold;
+        min-height: 24px;
+    }
+
+    .feedback.correct {
+        color: green;
+    }
+
+    .feedback.incorrect {
+        color: red;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn-group button {
+        flex: 1;
+        padding: 12px;
+        background: #00bcd4;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    .btn-group button:hover {
+        background: #0097a7;
+    }
+
+    .btn-group button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="main">
+            <div class="quiz-box">
+                <h2>React Quiz</h2>
+                <div class="timer-row">
+                    <p id="question-counter"><strong>Question 1 of 5</strong></p>
+                    <span id="timer" class="timer">04:00</span>
+                </div>
+                <p id="question-text">What is React?</p>
+                <div id="options" class="options"></div>
+                <div id="feedback" class="feedback"></div>
+                <div class="btn-group">
+                    <button id="prev-btn" type="button" style="display:none;">Previous</button>
+                    <button id="next-btn" type="button" disabled>Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const questions = [
+        {
+            question: "What is React?",
+            options: [
+                "A database",
+                "A JavaScript library for building user interfaces",
+                "A programming language",
+                "An operating system"
+            ],
+            correctAnswer: 1
+        },
+        {
+            question: "React is a JavaScript library?",
+            options: [
+               "true",
+               "false"
+            ],
+            correctAnswer: 0
+        },
+        {
+            question: "Which hook is used for side effects?",
+            options: [
+                "useState",
+                "useEffect",
+                "useContext",
+                "useReduce"
+            ],
+            correctAnswer: 1
+        },
+        {
+            question: "Which symbol is used to embed JavaScript inside JSX?",
+            options: [
+              "()",
+              "{}",
+               "[]",
+               "<>"
+            ],
+            correctAnswer: 1
+        },
+        {
+            question: "React can only be used for mobile applications?",
+            options: [
+                "true",
+                "false"
+            ],
+            correctAnswer: 1
+        }
+    ];
+
+    const questionCounter = document.getElementById("question-counter");
+    const questionText = document.getElementById("question-text");
+    const optionsBox = document.getElementById("options");
+    const feedbackBox = document.getElementById("feedback");
+    const prevBtn = document.getElementById("prev-btn");
+    const nextBtn = document.getElementById("next-btn");
+
+    const QUIZ_STORAGE_KEY = "quizState_react";
+    const TIMER_DURATION_MS = 4 * 60 * 1000;
+    const timerDisplay = document.getElementById("timer");
+    let timerInterval = null;
+
+    let savedState = null;
+    try {
+      savedState = JSON.parse(sessionStorage.getItem(QUIZ_STORAGE_KEY) || "null");
+    } catch (e) {
+      savedState = null;
+    }
+
+    const state = savedState
+      ? { currentQuestion: savedState.currentQuestion || 0, answers: savedState.answers || [] }
+      : { currentQuestion: 0, answers: [] };
+
+    // On refresh, keep our place in the quiz but remove the option we had
+    // selected for the current question so it must be chosen again.
+    if (savedState) {
+      delete state.answers[state.currentQuestion];
+    }
+
+    const timerEnd = savedState && savedState.timerEnd ? savedState.timerEnd : Date.now() + TIMER_DURATION_MS;
+
+    function saveQuizState() {
+      sessionStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify({
+        currentQuestion: state.currentQuestion,
+        answers: state.answers,
+        timerEnd: timerEnd
+      }));
+    }
+
+    function updateTimerDisplay() {
+      const remaining = Math.max(0, timerEnd - Date.now());
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      timerDisplay.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      timerDisplay.classList.toggle("low", remaining <= 30000);
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        autoSubmit();
+      }
+    }
+
+    function autoSubmit() {
+      saveResults();
+      sessionStorage.removeItem(QUIZ_STORAGE_KEY);
+      feedbackBox.textContent = "⏰ Time's up! Submitting your quiz...";
+      feedbackBox.className = "feedback incorrect";
+      setTimeout(() => {
+        window.location.href = "result.html";
+      }, 500);
+    }
+
+    function saveResults() {
+      localStorage.setItem("topic", "React Quiz");
+      localStorage.setItem("quizFile", "react.html");
+      localStorage.setItem("retakeUrl", "react.html");
+      localStorage.setItem("username", localStorage.getItem("username") || "Student");
+      const correctCount = state.answers.reduce((count, answer, index) => count + (answer !== undefined && answer === questions[index].correctAnswer ? 1 : 0), 0);
+      const wrongCount = questions.length - correctCount;
+      localStorage.setItem("score", correctCount);
+      localStorage.setItem("correctCount", correctCount);
+      localStorage.setItem("wrongCount", wrongCount);
+      localStorage.setItem("totalQuestions", questions.length);
+
+      const reviewData = questions.map((q, index) => ({
+        question: q.question,
+        options: q.options,
+        userAnswer: state.answers[index],
+        userAnswerText: state.answers[index] !== undefined ? q.options[state.answers[index]] : "Not answered",
+        correctAnswer: q.correctAnswer,
+        correctAnswerText: q.options[q.correctAnswer],
+        isCorrect: state.answers[index] === q.correctAnswer
+      }));
+      localStorage.setItem("reviewData", JSON.stringify(reviewData));
+    }
+
+    function updateNextButton() {
+      nextBtn.disabled = state.answers[state.currentQuestion] === undefined;
+    }
+
+    function clearFeedback() {
+      feedbackBox.textContent = "";
+      feedbackBox.className = "feedback";
+    }
+
+    function showQuestion() {
+        const q = questions[state.currentQuestion];
+        questionCounter.innerHTML = `<strong>Question ${state.currentQuestion + 1} of ${questions.length}</strong>`;
+        questionText.textContent = q.question;
+        optionsBox.innerHTML = "";
+
+        q.options.forEach((option, index) => {
+            const label = document.createElement("label");
+            label.className = "option";
+
+            const input = document.createElement("input");
+            input.type = "radio";
+            input.name = `answer-${state.currentQuestion}`;
+            input.value = index;
+            input.checked = state.answers[state.currentQuestion] === index;
+            if (state.answers[state.currentQuestion] === index) {
+                label.classList.add("selected");
+            }
+            input.addEventListener("change", function () {
+                state.answers[state.currentQuestion] = Number(this.value);
+                saveResults();
+                optionsBox.querySelectorAll(".option").forEach(function (el) {
+                    el.classList.remove("selected");
+                });
+                label.classList.add("selected");
+                updateNextButton();
+            });
+
+            label.appendChild(input);
+            label.appendChild(document.createTextNode(` ${option}`));
+            optionsBox.appendChild(label);
+        });
+
+        prevBtn.style.display = state.currentQuestion === 0 ? "none" : "inline-block";
+        nextBtn.textContent = state.currentQuestion === questions.length - 1 ? "Submit" : "Next";
+        updateNextButton();
+        clearFeedback();
+        saveQuizState();
+    }
+
+    prevBtn.addEventListener("click", function () {
+        if (state.currentQuestion > 0) {
+            state.currentQuestion--;
+            showQuestion();
+        }
+    });
+
+    nextBtn.addEventListener("click", function () {
+        if (state.answers[state.currentQuestion] === undefined) {
+            feedbackBox.textContent = "Please choose an answer before continuing.";
+            feedbackBox.className = "feedback incorrect";
+            return;
+        }
+
+        saveResults();
+        if (state.currentQuestion < questions.length - 1) {
+            state.currentQuestion++;
+            showQuestion();
+        } else {
+            clearInterval(timerInterval);
+            sessionStorage.removeItem(QUIZ_STORAGE_KEY);
+            setTimeout(function () {
+                window.location.href = "result.html";
+            }, 350);
+        }
+    });
+
+    showQuestion();
+    updateTimerDisplay();
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+</script>
+</body>
+</html>
